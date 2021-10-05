@@ -1,6 +1,6 @@
 package module3
 import zioConcurrency.printEffectRunningTime
-import zio.{Has, Task, ULayer, ZIO, ZLayer}
+import zio.{Has, Task, ULayer, ZIO, ZLayer, clock}
 import zio.clock.{Clock, sleep}
 import zio.console._
 import zio.duration.durationInt
@@ -12,6 +12,9 @@ import java.util.concurrent.TimeUnit
 import scala.io.StdIn
 import scala.language.postfixOps
 import _root_.module3.zio_homework.config.AppConfig
+import zio.URIO
+import scala.annotation.tailrec
+import java.sql.Time
 
 package object zio_homework {
   /**
@@ -29,6 +32,7 @@ package object zio_homework {
     _ <- zio.console.putStrLn(if (guess == input) "You guessed!" else "Try again!")
   } yield guess == input
 
+  // retry 3 times
   lazy val guessProgram = guessOnce.repeatN(2)
 
   /**
@@ -36,7 +40,8 @@ package object zio_homework {
    * 
    */
 
-  def doWhile[R, E, A](eff: ZIO[R, E, A])(preduicate: A => Boolean) = ???
+  def doWhile[R, E, A](eff: ZIO[R, E, A])(predicate: A => Boolean): ZIO[R,E,A] = 
+    eff.flatMap(v => if (predicate(v)) ZIO.yieldNow *> doWhile(eff)(predicate) else ZIO.succeed(v))
 
   /**
    * 3. Реализовать метод, который безопасно прочитает конфиг из файла, а в случае ошибки вернет дефолтный конфиг
@@ -58,12 +63,12 @@ package object zio_homework {
    * 4.1 Создайте эффект, который будет возвращать случайеым образом выбранное число от 0 до 10 спустя 1 секунду
    * Используйте сервис zio Random
    */
-  lazy val eff = ZIO.sleep(1 second) *> zio.random.nextIntBounded(10)
+  lazy val eff: ZIO[Clock with Random,Nothing,Int] = ZIO.sleep(1 second) *> zio.random.nextIntBounded(10)
 
   /**
    * 4.2 Создайте коллукцию из 10 выше описанных эффектов (eff)
    */
-  lazy val effects = List.fill(10)(eff)
+  lazy val effects: List[ZIO[Clock with Random,Nothing,Int]] = List.fill(10)(eff)
 
   
   /**
@@ -71,16 +76,20 @@ package object zio_homework {
    * напечатает ее в консоль и вернет результат, а также залогирует затраченное время на выполнение,
    * можно использовать ф-цию printEffectRunningTime, которую мы разработали на занятиях
    */
-  lazy val sum = ZIO.foldLeft(effects)(0)((x, y) => y.map(v => v + x))
-  lazy val app = printEffectRunningTime(sum).flatMap(v => zio.console.putStrLn(s"Sum is $v"))
+  lazy val sum: ZIO[Clock with Random,Nothing,Int] = 
+    ZIO.foldLeft(effects)(0)((x, y) => y.map(v => v + x))
+  lazy val app: ZIO[Clock with Console with Random,Nothing,Unit] = 
+    printEffectRunningTime(sum).flatMap(v => zio.console.putStrLn(s"Sum is $v"))
 
 
   /**
    * 4.4 Усовершенствуйте программу 4.3 так, чтобы минимизировать время ее выполнения
    */
 
-  lazy val fastSum = ZIO.reduceAllPar(ZIO.succeed(0), effects)((x, y) => x + y)
-  lazy val appSpeedUp = printEffectRunningTime(fastSum).flatMap(v => zio.console.putStrLn(s"Sum is $v"))
+  lazy val fastSum: ZIO[Clock with Random,Nothing,Int] = 
+    ZIO.reduceAllPar(ZIO.succeed(0), effects)((x, y) => x + y)
+  lazy val appSpeedUp: ZIO[Clock with Console with Random,Nothing,Unit] = 
+    printEffectRunningTime(fastSum).flatMap(v => zio.console.putStrLn(s"Sum is $v"))
 
 
   /**
@@ -88,6 +97,17 @@ package object zio_homework {
    * молжно было использовать аналогично zio.console.putStrLn например
    */
 
+  @accessible
+  object TimeService {
+    trait Service {
+      def printEffectRunningTime[R, E, A](eff: ZIO[R, E, A]): ZIO[R with Console with Clock, E, A]
+    }
+
+    val live: ULayer[Has[TimeService.Service]] = ZLayer.succeed(new Service{
+      def printEffectRunningTime[R, E, A](eff: ZIO[R, E, A]): ZIO[R with Console with Clock, E, A] =
+         zioConcurrency.printEffectRunningTime(eff)
+    })
+  }
 
    /**
      * 6.
@@ -96,13 +116,15 @@ package object zio_homework {
      * 
      */
 
-  lazy val appWithTimeLogg = ???
+  lazy val appWithTimeLog = TimeService
+    .printEffectRunningTime(fastSum)
+    .provideSomeLayer[Random with Clock with Console](TimeService.live)
 
   /**
     * 
     * Подготовьте его к запуску и затем запустите воспользовавшись ZioHomeWorkApp
     */
 
-  lazy val runApp = appSpeedUp
+  lazy val runApp = appWithTimeLog
   
 }

@@ -8,7 +8,7 @@ lazy val root = (project in file("."))
     name := "scala-dev-mooc-2021-07",
     version := "0.1",
     scalaVersion := "2.13.3",
-    libraryDependencies ++= zio
+    libraryDependencies ++= zio ++ Seq("com.github.pureconfig" %% "pureconfig" % "0.17.0")
   )
 
 testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
