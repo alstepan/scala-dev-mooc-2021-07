@@ -46,7 +46,7 @@ object type_system {
     }
   }
 
- lazy val result = ensureClose(io.Source.fromFile(file))(s => s.getLines())
+ lazy val result = ensureClose(scala.io.Source.fromFile(file))(s => s.getLines())
 
 
 
