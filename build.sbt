@@ -14,11 +14,12 @@ lazy val root = (project in file("."))
     libraryDependencies ++= doobie,
     libraryDependencies ++= http4sServer,
     libraryDependencies ++= circe,
+    libraryDependencies ++= testContainers,
     libraryDependencies ++= Seq(
       kindProjector,
       logback,
       liquibase,
-      postgres,
+      postgres
     ),
     addCompilerPlugin(Dependencies.kindProjector)
   )

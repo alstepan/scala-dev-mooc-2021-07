@@ -72,4 +72,9 @@ object Dependencies {
   
   lazy val kindProjector = "org.typelevel" %% "kind-projector" % KindProjectorVersion
 
+  lazy val  testContainers = Seq(
+      "com.dimafeng"  %% "testcontainers-scala-postgresql" % "0.39.11"  % Test,
+      "com.dimafeng"            %% "testcontainers-scala-scalatest"       % "0.39.11"  % Test
+      )
+
 }

@@ -26,6 +26,7 @@ import doobie.hikari.HikariTransactor
 import cats.effect.Blocker
 import zio.blocking.Blocking
 import zio.macros.accessible
+import module4.phoneBook.configuration.DbConfig
 
 package object db {
   type DBTransactor = Has[Transactor[Task]]
@@ -64,6 +65,7 @@ package object db {
         liquibase <- mkLiquibase(config, transactor)
       } yield (liquibase)
     )
+
 
     def liquibase: URIO[Liqui, Liquibase] = ZIO.service[Liquibase]
 

@@ -6,7 +6,6 @@ import zio.console.Console
 import zio.duration.durationInt
 import zio.random.Random
 
-import javax.management.Query
 import scala.language.postfixOps
 
 object di {
@@ -111,7 +110,7 @@ object di {
   // lazy val e4: ZIO[DBService,Throwable,Unit] = queryAndNotify.provideSome[DBService](emailService2)
 
   // provide
-  // lazy val e5: IO[Throwable, Unit] = e4.provide(dBService)
+  // lazy val e5: IO[Throwable, Unit] = e4.provide(dBService) 
 
   lazy val servicesLayer: ZLayer[Any, Nothing, DBService with EmailService] = ???
 
