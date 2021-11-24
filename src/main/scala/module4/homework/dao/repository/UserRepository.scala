@@ -39,34 +39,56 @@ object UserRepository{
 
     class ServiceImpl extends Service{
 
-        val userSchema = ???
+        val userSchema = quote { querySchema[User](""""User"""") }
+        val roleSchema = quote { querySchema[Role](""""Role"""") }
+        val userToRoleSchema = quote { querySchema[UserToRole](""""UserToRole"""") }
 
-        val roleSchema = ???
-
-        val userToRoleSchema = ???
-        def findUser(userId: UserId): Result[Option[User]] = ???
+        def findUser(userId: UserId): Result[Option[User]] = 
+            dc.run( userSchema.filter(u => u.id == lift(userId.id)) ).map(_.headOption)
         
-        def createUser(user: User): Result[User] = ???
+        def createUser(user: User): Result[User] = 
+            dc.run( userSchema.insert(lift(user)) ).map(_ => user)
         
-        def createUsers(users: List[User]): Result[List[User]] = ???
+        def createUsers(users: List[User]): Result[List[User]] = dc.run(
+            liftQuery(users).foreach(u => userSchema.insert(u))
+        ).map(_ => users)
         
-        def updateUser(user: User): Result[Unit] = ???
+        def updateUser(user: User): Result[Unit] = 
+            dc.run( userSchema.filter(u => u.id == lift(user.id)).update(lift(user))).map(_ => ())
         
-        def deleteUser(user: User): Result[Unit] = ???
+        def deleteUser(user: User): Result[Unit] = 
+            dc.run( userSchema.filter(u => u.id == lift(user.id)).delete ).map(_ => () )
         
-        def findByLastName(lastName: String): Result[List[User]] = ???
+        def findByLastName(lastName: String): Result[List[User]] = 
+            dc.run( userSchema.filter(u => u.lastName == lift(lastName)) )
         
-        def list(): Result[List[User]] = ???
+        def list(): Result[List[User]] = dc.run( userSchema )
         
-        def userRoles(userId: UserId): Result[List[Role]] = ???
+        def userRoles(userId: UserId): Result[List[Role]] = dc.run(
+            for {
+                user <- userSchema
+                userRole <- userToRoleSchema.join(_.userId == user.id)
+                role <- roleSchema.join(_.code == userRole.roleId)
+            } yield role
+        )
         
-        def insertRoleToUser(roleCode: RoleCode, userId: UserId): Result[Unit] = ???
+        def insertRoleToUser(roleCode: RoleCode, userId: UserId): Result[Unit] = dc.run(
+            userToRoleSchema.insert(lift(UserToRole(roleCode.code, userId.id)))
+        ).map(_ => ())
         
-        def listUsersWithRole(roleCode: RoleCode): Result[List[User]] = ???
+        def listUsersWithRole(roleCode: RoleCode): Result[List[User]] = dc.run(
+            for {
+                userRole <- userToRoleSchema
+                if userRole.roleId == lift(roleCode.code)
+                user <- userSchema.join(_.id == userRole.userId)
+            } yield user
+        )
         
-        def findRoleByCode(roleCode: RoleCode): Result[Option[Role]] = ???
+        def findRoleByCode(roleCode: RoleCode): Result[Option[Role]] = dc.run (
+            roleSchema.filter(r => r.code == lift(roleCode.code))
+        ).map(_.headOption)
                 
     }
 
-    val live: ULayer[UserRepository] = ???
+    val live: ULayer[UserRepository] = ZLayer.succeed(new ServiceImpl)
 }

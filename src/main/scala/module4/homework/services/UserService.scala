@@ -17,6 +17,8 @@ import module4.homework.dao.entity.UserToRole
 import zio.ZLayer
 import zio.macros.accessible
 import module4.homework.dao.entity.RoleCode
+import cats.Traverse._
+import cats.implicits._
 
 @accessible
 object UserService{
@@ -39,16 +41,36 @@ object UserService{
              users <- userRepo.list().transact(transactor)
         } yield users
 
-        def listUsersDTO(): RIO[DBTransactor,List[UserDTO]] = ???
+        def userRoles(user: User) = for {
+            transactor <- DBTransactor.dbTransactor
+            roles <- userRepo.userRoles(user.typedId).transact(transactor)
+        } yield UserDTO(user, roles.toSet)
+
+        def listUsersDTO(): RIO[DBTransactor,List[UserDTO]] = for {
+            users <- listUsers()
+            l <- users.map(u => userRoles(u)).traverse(identity)
+        } yield l
         
-        def addUserWithRole(user: User, roleCode: RoleCode): RIO[DBTransactor,UserDTO] = ???
+        def addUserWithRole(user: User, roleCode: RoleCode): RIO[DBTransactor,UserDTO] = for {
+            transactor <- DBTransactor.dbTransactor
+            query = for {
+                _ <- userRepo.createUser(user)
+                _ <- userRepo.insertRoleToUser(roleCode, user.typedId)
+            } yield ()
+            _ <- query.transact(transactor)
+        } yield UserDTO(user, Set())
         
-        def listUsersWithRole(roleCode: RoleCode): RIO[DBTransactor,List[UserDTO]] = ???
+        def listUsersWithRole(roleCode: RoleCode): RIO[DBTransactor,List[UserDTO]] = for {
+            transactor <- DBTransactor.dbTransactor
+            users <- userRepo.listUsersWithRole(roleCode).transact(transactor)
+            role <- userRepo.findRoleByCode(roleCode).transact(transactor)
+        } yield users.map(u => UserDTO(u, role.fold(Set[Role]())(Set[Role](_))))
         
         
     }
 
-    val live: ZLayer[UserRepository.UserRepository, Nothing, UserService] = ???
+    val live: ZLayer[UserRepository.UserRepository, Nothing, UserService] = 
+        ZLayer.fromService(repo => new Impl(repo))
 }
 
 case class UserDTO(user: User, roles: Set[Role])
