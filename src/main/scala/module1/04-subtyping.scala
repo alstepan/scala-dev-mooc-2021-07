@@ -240,6 +240,10 @@ object subtyping {
        * 1. Имя должно начинаться с A
        * 2. Все остальные
        */
+      alex match {
+        case Employee(n, _) if n.startsWith("A") => println("ok")
+        case _ => println("not ok")
+      }
 
 
       /**
@@ -343,12 +347,20 @@ object subtyping {
       /**
        * Написать паттерн матчинг на 10 пику, и на все остальное
        */
+      card match {
+        case Card.Spades(10) => println("you are lucky")
+        case _ => println("nice try")
+      }
 
 
 
       /**
        * Написать паттерн матчинг который матчит карты номиналом >= 10
        */
+      card match {
+        case Card.Spades(x) if x >= 10 => println("you are lucky")
+        case _ => println("nice try")
+      }
 
     }
 
